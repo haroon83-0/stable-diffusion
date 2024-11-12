@@ -25,6 +25,7 @@ class VAE_Encoder(nn.Sequential):
             VAE_ResidualBlock(512, 512),
 
             VAE_ResidualBlock(512, 512),
+
             VAE_AttentionBlock(512),
 
             VAE_ResidualBlock(512, 512),
@@ -38,8 +39,6 @@ class VAE_Encoder(nn.Sequential):
         )
 
     def forward(self, x: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
-    
-        # Apply padding if necessary and pass through each module
         for module in self:
             if getattr(module, "stride", None) == (2, 2):
                 x = F.pad(x, (0, 1, 0, 1))
