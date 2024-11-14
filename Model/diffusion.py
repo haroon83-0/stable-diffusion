@@ -1,7 +1,8 @@
 import torch
-from torch import  nn
+from torch import nn
 from torch.nn import functional as F
 from attention import SelfAttention, CrossAttention
+
 
 class Diffusion(nn.Module):
     def __init__(self):
@@ -29,13 +30,14 @@ class TimeEmbedding(nn.Module):
 
         return x
 
+
 class UNET_OutputLayer(nn.Module):
     def __init__(self, in_channels: int, out_channels: int):
         super().__init__()
         self.groupnorm = nn.GroupNorm(32, in_channels)
-        self.conv =  nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 
-    def forward(self,x):
+    def forward(self, x):
         x = self.groupnorm(x)
         x = F.silu(x)
         x = self.conv(x)
@@ -43,15 +45,16 @@ class UNET_OutputLayer(nn.Module):
 
 
 class SwitchSequential(nn.Module):
-     def forward(self, latent: torch.Tensor, context: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
-         for layer in self:
-             if isinstance(layer, UNET_AttentionBlock):
-                 x = layer(x, context)
-             elif isinstance(layer, UNET_ResidualBlock):
-                 x = layer(x, time)
-             else:
-                 x = layer(x)
-         return x
+    def forward(self, latent: torch.Tensor, context: torch.Tensor, time: torch.Tensor) -> torch.Tensor:
+        for layer in self:
+            if isinstance(layer, UNET_AttentionBlock):
+                x = layer(x, context)
+            elif isinstance(layer, UNET_ResidualBlock):
+                x = layer(x, time)
+            else:
+                x = layer(x)
+        return x
+
 
 class Upsample(nn.Module):
     def __init__(self):
@@ -59,8 +62,9 @@ class Upsample(nn.Module):
         self.conv = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
 
     def forward(self, x):
-        x = F.interpolate(x, scale_factor= 2, mode= "nearest")
+        x = F.interpolate(x, scale_factor=2, mode="nearest")
         return self.conv(x)
+
 
 class UNET(nn.Module):
     def __init__(self):
@@ -107,6 +111,7 @@ class UNET(nn.Module):
             SwitchSequential(UNET_ResidualBlock(640, 320), UNET_Attention(8, 40))
         })
 
+
 class UNET_ResidualBlock(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, n_time: 1280):
         super().__init__()
@@ -137,6 +142,7 @@ class UNET_ResidualBlock(nn.Module):
 
         return merged + self.residual_layer(resdiue)
 
+
 class UNET_AttentionBlock(nn.Module):
     def __init__(self, n_heads: int, n_embed: int, d_context: 768):
         super().__init__()
@@ -148,23 +154,22 @@ class UNET_AttentionBlock(nn.Module):
         self.layernorm_1 = nn.LayerNorm(channels)
         self.attention_1 = SelfAttention(n_heads, channels, in_proj_bias=False)
         self.layernorm_2 = nn.LayerNorm(channels)
-        self.attention_2 = CrossAttention(n_heads, channels, d_context, in_proj_bias= False)
-        self.layernorm_3 =  nn.LayerNorm(channels)
-        self.linear_1 =  nn.Linear(channels, 4 * channels * 2)
+        self.attention_2 = CrossAttention(n_heads, channels, d_context, in_proj_bias=False)
+        self.layernorm_3 = nn.LayerNorm(channels)
+        self.linear_1 = nn.Linear(channels, 4 * channels * 2)
         self.linear_2 = nn.Linear(4 * channles, channels)
 
         self.conv_output = nn.Conv2d(channels, channels, kernel_size=1, padding=0)
 
     def forward(self, x, context):
-
         residue_long = x
 
-        x =  self.groupnorm(x)
+        x = self.groupnorm(x)
         x = self.conv_input(x)
 
         b, c, h, w = x.shape
-        x = x.view((b, c, h*w))
-        x = x.transpose(-1,-2)
+        x = x.view((b, c, h * w))
+        x = x.transpose(-1, -2)
         residue_short = x
 
         x = self.layernorm_1(x)
@@ -188,4 +193,4 @@ class UNET_AttentionBlock(nn.Module):
         x = x.transpose(-1, -2)
         x = x.view((b, c, h, w))
 
-        return  self.conv_output(x) + residue_long
+        return self.conv_output(x) + residue_long

@@ -12,9 +12,10 @@ class CLIPEmbedding(nn.module):
         self.position_embedding = nn.Parameter(torch.zeros(n_tokens, n_embed))
 
     def forward(self, tokens):
-        x = self. token_embedding(tokens)
-        x+= self. position_embedding
+        x = self.token_embedding(tokens)
+        x += self.position_embedding
         return x
+
 
 class CLIPLayer(nn.Module):
     def __init__(self, n_head: int, n_embed: int):
@@ -27,7 +28,6 @@ class CLIPLayer(nn.Module):
         self.linear_2 = nn.Linear(4 * n_embed, n_embed)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-
         residue = x
 
         x = self.layernorm_1(x)
@@ -43,9 +43,11 @@ class CLIPLayer(nn.Module):
         x += residue
 
         return x
+
+
 class ClIP(nn.Module):
     def __init__(self):
-        self.embedding = ClIPEmbedding(49408, 758, 77) #(vocab, vector_size, length)
+        self.embedding = ClIPEmbedding(49408, 758, 77)  # (vocab, vector_size, length)
 
         self.layers = nn.Module([
             CLIPLayer(12, 768) for i in range(12)
@@ -53,7 +55,7 @@ class ClIP(nn.Module):
 
         self.layernorm = nn.LayerNorm(768)
 
-    def forward(self, tokens:torch.LongTensor) -> torch.FloatTensor:
+    def forward(self, tokens: torch.LongTensor) -> torch.FloatTensor:
         tokens = tokens.type(torch.long)
 
         state = self.embedding(tokens)

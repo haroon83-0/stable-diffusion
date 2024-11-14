@@ -54,7 +54,7 @@ class VAE_Encoder(nn.Sequential):
         variance = log_variance.exp()
         stddev = variance.sqrt()
 
-        # Sample from the distribution using the reparameterization trick
+        # Sample from the distribution using the re-parameterization trick
         x = mean + stddev * noise
 
         # Scale the output tensor

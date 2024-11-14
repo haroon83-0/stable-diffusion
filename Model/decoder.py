@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from attention import SelfAttention
 
+
 class VAE_ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -56,6 +57,7 @@ class VAE_AttentionBlock(nn.Module):
         # Add the residual (skip connection)
         return x + residue
 
+
 class VAE_Decoder(nn.Module):
 
     def __init__(self):
@@ -100,7 +102,7 @@ class VAE_Decoder(nn.Module):
             nn.Conv2d(128, 3, kernel_size=3, padding=1),
         )
 
-    def forward(self, x:torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x /= 0.18215
 
         for module in self:
