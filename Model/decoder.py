@@ -7,11 +7,11 @@ from attention import SelfAttention
 class VAE_ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.groupnorms_1 = nn.GroupNorm(32, in_channels)
-        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+        self.groupnorm_1 = nn.GroupNorm(32, in_channels)
+        self.conv_1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
 
-        self.groupnorms_2 = nn.GroupNorm(32, out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.groupnorm_2 = nn.GroupNorm(32, out_channels)
+        self.conv_2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
 
         if in_channels == out_channels:
             self.residual_layer = nn.Identity()
@@ -20,24 +20,21 @@ class VAE_ResidualBlock(nn.Module):
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         residue = x
-        x = self.groupnorms_1(x)
+        x = self.groupnorm_1(x)
         x = F.silu(x)
-        x = self.conv1(x)
+        x = self.conv_1(x)
 
-        x = self.groupnorms_2(x)
+        x = self.groupnorm_2(x)
         x = F.silu(x)
-        x = self.conv2(x)
+        x = self.conv_2(x)
 
         return x + self.residual_layer(residue)
 
 
 class VAE_AttentionBlock(nn.Module):
-    def __init__(self, channels: int):
+    def __init__(self, channels):
         super().__init__()
-        # Group normalization to normalize the input tensor
         self.groupnorm = nn.GroupNorm(32, channels)
-
-        # Self-attention mechanism to capture dependencies across the spatial dimensions
         self.attention = SelfAttention(1, channels)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -45,20 +42,23 @@ class VAE_AttentionBlock(nn.Module):
         residue = x
 
         # Reshape and transpose for attention mechanism
-        b, c, h, w = x.size()
-        x = x.view(b, c, -1).transpose(1, 2)  # Shape: (batch_size, h*w, channels)
+        n, c, h, w = x.shape
+        x = x.view((n, c, h * w))
+        x = x.transpose(-1, -2)
 
         # Apply attention
         x = self.attention(x)
 
         # Reshape back to original dimensions
-        x = x.transpose(1, 2).view(b, c, h, w)
+        x = x.transpose(-1, -2)
+        x = x.view((n, c, h, w))
+        x += residue
 
         # Add the residual (skip connection)
-        return x + residue
+        return x
 
 
-class VAE_Decoder(nn.Module):
+class VAE_Decoder(nn.Sequential):
 
     def __init__(self):
         super().__init__(
@@ -92,9 +92,9 @@ class VAE_Decoder(nn.Module):
             nn.Upsample(scale_factor=2),
 
             nn.Conv2d(256, 256, kernel_size=3, padding=1),
-            VAE_ResidualBlock(512, 256),
-            VAE_ResidualBlock(256, 256),
-            VAE_ResidualBlock(256, 256),
+            VAE_ResidualBlock(256, 128),
+            VAE_ResidualBlock(128, 128),
+            VAE_ResidualBlock(128, 128),
 
             nn.GroupNorm(32, 128),
             nn.SiLU(),

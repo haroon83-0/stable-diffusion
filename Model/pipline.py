@@ -10,15 +10,17 @@ LATENTS_HEIGHT = HEIGHT // 8
 
 
 def generate(prompt: str, uncond_prompt=None, input_image=None, strength=0.8, do_cfg=True, cfg_scale=7.5,
-             sampler_name="ddpm", n_inference_strength=50, models=(), seed=None, device=None, idle_device=None, tokenizer=None):
+             sampler_name="ddpm", n_inference_steps=50, models={}, seed=None, device=None, idle_device=None,
+             tokenizer=None):
 
     with torch.no_grad():
-        if not (0 < strength <= 1):
+        if not 0 < strength <= 1:
             raise ValueError("Strength should be between 0 and 1")
+
         if idle_device:
-            to_idle: lambda x: x.to(idle_device)
+            to_idle= lambda x: x.to(idle_device)
         else:
-            to_idle: lambda x: x
+            to_idle = lambda x: x
 
         # generate random noise
         generator = torch.Generator(device=device)
@@ -28,6 +30,7 @@ def generate(prompt: str, uncond_prompt=None, input_image=None, strength=0.8, do
             generator.manual_seed(seed)
 
         clip = models["clip"]
+
         clip.to(device)
 
         if do_cfg:
@@ -47,12 +50,11 @@ def generate(prompt: str, uncond_prompt=None, input_image=None, strength=0.8, do
             tokens = tokenizer.batch_encode_plus([prompt], padding="max_length", max_length=77).input_ids
             tokens = torch.tensor(tokens, dtype=torch.long, device=device)
             context = clip(tokens)  # (1, 77, 768)
-
         to_idle(clip)
 
         if sampler_name == "ddpm":
             sampler = DDPMSampler(generator)
-            sampler.set_inference_steps(n_inference_strength)
+            sampler.set_inference_timesteps(n_inference_steps)
         else:
             raise ValueError(f"unknown sampler {sampler_name}")
 
@@ -64,7 +66,7 @@ def generate(prompt: str, uncond_prompt=None, input_image=None, strength=0.8, do
 
             input_image_tensor = input_image.resize((WIDTH, HEIGHT))
             input_image_tensor = np.array(input_image_tensor)
-            input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32)
+            input_image_tensor = torch.tensor(input_image_tensor, dtype=torch.float32, device=device)
 
             input_image_tensor = rescale(input_image_tensor, (0, 255), (-1, 1))
             input_image_tensor = input_image_tensor.unsqeeze(0)
@@ -126,6 +128,6 @@ def rescale(x, old_range, new_range, clamp=False):
 
 
 def get_time_embedding(timestep):
-    freq = torch.pow(10000, -torch.arange(start=0, end=100, dtype=torch.float32) / 160)
-    x = torch.tensor([timestep], dtype=torch.float32)[:None] * freq[None]
+    freq = torch.pow(10000, -torch.arange(start=0, end=160, dtype=torch.float32) / 160)
+    x = torch.tensor([timestep], dtype=torch.float32)[:,None] * freq[None]
     return torch.cat([torch.cos(x), torch.sin(x)], dim=-1)

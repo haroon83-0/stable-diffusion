@@ -15,11 +15,11 @@ class SelfAttention(nn.Module):
 
     def forward(self, x: torch.Tensor, causal_mask=False):
         input_shape = x.shape
-        batch_size, seq_length, d_embed = input_shape
+        batch_size, sequence_length, d_embed = input_shape
 
-        intermediate_shape = (batch_size, seq_length, self.n_heads, self.d_head)
+        intermediate_shape = (batch_size, sequence_length, self.n_heads, self.d_head)
 
-        q, k, v = self.in_proj(x).chunk(3, dim=1)
+        q, k, v = self.in_proj(x).chunk(3, dim=-1)
 
         q = q.view(intermediate_shape).transpose(1, 2)
         k = k.view(intermediate_shape).transpose(1, 2)
@@ -28,7 +28,7 @@ class SelfAttention(nn.Module):
         weight = q @ k.transpose(-1, -2)
 
         if causal_mask:
-            mask = torch.ones_like(weight, dtype=torch.bool.triu(1))
+            mask = torch.ones_like(weight, dtype=torch.bool).triu(1)
             weight.masked_fill_(mask, -torch.inf)
 
         weight /= math.sqrt(self.d_head)
@@ -54,13 +54,13 @@ class CrossAttention(nn.Module):
         self.v_proj = nn.Linear(d_cross, d_embed, bias=in_proj_bias)
 
         self.out_proj = nn.Linear(d_embed, d_embed, bias=out_proj_bias)
-        self.n_head = n_heads
-        self.d_head = d_heads
+        self.n_heads = n_heads
+        self.d_head = d_embed // n_heads
 
     def forward(self, x, y):
         input_shape = x.shape
-        batch_size, seq_length, d_embed = input_shape
-        intermediate_shape = (batch_size, -1, self.n_head, self.d_head)
+        batch_size, sequence_length, d_embed = input_shape
+        intermediate_shape = (batch_size, -1, self.n_heads, self.d_head)
 
         q = self.q_proj(x)
         k = self.k_proj(y)

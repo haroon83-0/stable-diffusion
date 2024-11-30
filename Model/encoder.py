@@ -38,7 +38,7 @@ class VAE_Encoder(nn.Sequential):
             nn.Conv2d(8, 8, kernel_size=1, padding=0),
         )
 
-    def forward(self, x: torch.Tensor, noise: torch.Tensor) -> torch.Tensor:
+    def forward(self, x, noise):
         for module in self:
             if getattr(module, "stride", None) == (2, 2):
                 x = F.pad(x, (0, 1, 0, 1))
@@ -61,4 +61,3 @@ class VAE_Encoder(nn.Sequential):
         x *= 0.18215
 
         return x
-
